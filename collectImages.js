@@ -1,36 +1,39 @@
 var request = require('request');
 var qs = require('querystring');
 var fs = require('fs');
+var fetch = require('node-fetch');
+var path = require('path');
+var config = require('./config.js')
 
-var searchWord = '桐谷美玲';
+var searchWord = '三田友梨佳';
+var folder = "Mita"
 
-var queryParams = {
-    Query: "'" + searchWord + "'"
+imageSearch(searchWord)
+
+function saveImage(contentUrl) {
+    fetch(contentUrl).then((response) => {
+        var dest = fs.createWriteStream('./' + folder + '/' + path.basename(contentUrl));
+        response.body.pipe(dest);
+    });
 }
 
-var requestOptions = {
-    url: 'https://api.datamarket.azure.com/Bing/Search/v1/Image?' + qs.stringify(queryParams) + "&$format=json",
-    json: true,
-    method: 'get',
-    'auth':{
-        'user': '',
-        'pass': '<Bing Search API KEY>'
-    }
-}
+function imageSearch(searchWord) {
+    console.log(config)
 
-request(requestOptions, function(err, res, body) {
-    console.log(body);
-        for(var index in body.d.results) {
-            saveImage(index, body.d.results[index]);
+    return fetch("https://api.cognitive.microsoft.com/bing/v7.0/images/search?q=" + qs.escape(searchWord) + "&&mkt=ja-jp", {
+        method: 'GET',
+        headers: {
+            'Ocp-Apim-Subscription-Key': config.SubscriptionKey
         }
-    }
-);
-
-function saveImage(index, result) {
-    request.get(result.MediaUrl)
-    .on('response', function (res) {
-        console.log('statusCode: ', res.statusCode);
-        console.log('content-length: ', res.headers['content-length']);
+    }).then((response) => {
+        return response.json();
+    }).then((json) => {
+        console.log(json)
+        json.value.forEach((value) => {
+            saveImage(value.contentUrl)
+        })
+        return json;
+    }).catch((error) => {
+        console.log(error)
     })
-    .pipe(fs.createWriteStream('./images' + index + '.jpg'));
 }
